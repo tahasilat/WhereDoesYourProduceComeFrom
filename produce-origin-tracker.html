@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produce Origin Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .input-section {
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .chart-section {
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .country-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .country-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .country-name {
+            flex: 1;
+        }
+        .counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button {
+            padding: 5px 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .count {
+            min-width: 30px;
+            text-align: center;
+        }
+        .add-country {
+            margin-top: 20px;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+        select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Produce Origin Tracker</h1>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Countries</h2>
+            <div class="country-list" id="countryList"></div>
+            
+            <div class="add-country">
+                <h3>Add New Country</h3>
+                <div>
+                    <input type="text" id="newCountry" placeholder="Country name">
+                    <select id="newContinent">
+                        <option value="">Select continent</option>
+                        <option value="Africa">Africa</option>
+                        <option value="Asia">Asia</option>
+                        <option value="Europe">Europe</option>
+                        <option value="North America">North America</option>
+                        <option value="South America">South America</option>
+                        <option value="Central America">Central America</option>
+                        <option value="Oceania">Oceania</option>
+                        <option value="Canada">Canada</option>
+                        <option value="USA">USA</option>
+                    </select>
+                    <button onclick="addNewCountry()">Add Country</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-section">
+            <h2>Where does our produce come from?</h2>
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+    
+    <script>
+        // Initial data from the notebook
+        const countryContents = {
+            "Brazil": "South America",
+            "China": "Asia",
+            "Mexico": "Central America",
+            "Colombia": "South America",
+            "Costa Rica": "Central America",
+            "Canada": "Canada",
+            "USA": "USA",
+            "Chile": "South America",
+            "Guatemala": "Central America",
+            "Morocco": "Africa",
+            "Dominican Republic": "Central America",
+            "Ecuador": "South America",
+            "Honduras": "Central America",
+            "Vietnam": "Asia",
+            "Italy": "Europe",
+            "Israel": "Asia",
+            "Peru": "South America"
+        };
+        
+        // Initial fruit counts
+        let countryCounts = {
+            "Brazil": 2,
+            "Canada": 6,
+            "USA": 2,
+            "Vietnam": 1
+        };
+        
+        // Chart instance
+        let pieChart;
+        
+        // Initialize the page
+        function init() {
+            renderCountryList();
+            updateChart();
+        }
+        
+        // Render the country list with counters
+        function renderCountryList() {
+            const countryList = document.getElementById('countryList');
+            countryList.innerHTML = '';
+            
+            // Sort countries alphabetically
+            const sortedCountries = Object.keys(countryContents).sort();
+            
+            for (const country of sortedCountries) {
+                const count = countryCounts[country] || 0;
+                const continent = countryContents[country];
+                
+                const countryItem = document.createElement('div');
+                countryItem.className = 'country-item';
+                
+                const countryNameEl = document.createElement('div');
+                countryNameEl.className = 'country-name';
+                countryNameEl.innerHTML = `<strong>${country}</strong> <span>(${continent})</span>`;
+                
+                const counterEl = document.createElement('div');
+                counterEl.className = 'counter';
+                
+                const minusBtn = document.createElement('button');
+                minusBtn.innerText = '-';
+                minusBtn.onclick = () => changeCount(country, -1);
+                
+                const countEl = document.createElement('span');
+                countEl.className = 'count';
+                countEl.innerText = count;
+                
+                const plusBtn = document.createElement('button');
+                plusBtn.innerText = '+';
+                plusBtn.onclick = () => changeCount(country, 1);
+                
+                counterEl.appendChild(minusBtn);
+                counterEl.appendChild(countEl);
+                counterEl.appendChild(plusBtn);
+                
+                countryItem.appendChild(countryNameEl);
+                countryItem.appendChild(counterEl);
+                
+                countryList.appendChild(countryItem);
+            }
+        }
+        
+        // Change the count for a country
+        function changeCount(country, delta) {
+            const currentCount = countryCounts[country] || 0;
+            const newCount = Math.max(0, currentCount + delta);
+            
+            if (newCount === 0) {
+                delete countryCounts[country];
+            } else {
+                countryCounts[country] = newCount;
+            }
+            
+            renderCountryList();
+            updateChart();
+        }
+        
+        // Add a new country
+        function addNewCountry() {
+            const countryInput = document.getElementById('newCountry');
+            const continentInput = document.getElementById('newContinent');
+            
+            const country = countryInput.value.trim();
+            const continent = continentInput.value;
+            
+            if (country && continent) {
+                if (countryContents[country]) {
+                    alert(`${country} already exists in the list!`);
+                } else {
+                    countryContents[country] = continent;
+                    countryCounts[country] = 1;
+                    
+                    countryInput.value = '';
+                    continentInput.value = '';
+                    
+                    renderCountryList();
+                    updateChart();
+                }
+            } else {
+                alert('Please enter both a country name and select a continent.');
+            }
+        }
+        
+        // Update the pie chart
+        function updateChart() {
+            // Calculate data for the chart
+            const continentCounts = {};
+            
+            for (const country in countryCounts) {
+                const continent = countryContents[country];
+                const count = countryCounts[country];
+                
+                continentCounts[continent] = (continentCounts[continent] || 0) + count;
+            }
+            
+            const labels = Object.keys(continentCounts).sort();
+            const data = labels.map(continent => continentCounts[continent]);
+            
+            // Generate colors
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+                '#FF9F40', '#8AC249', '#EA5F94', '#00D8B6', '#FFB74D'
+            ];
+            
+            // Update or create the chart
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            
+            if (pieChart) {
+                pieChart.data.labels = labels;
+                pieChart.data.datasets[0].data = data;
+                pieChart.update();
+            } else {
+                pieChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors.slice(0, labels.length),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Initialize the page
+        window.onload = init;
+    </script>
+</body>
+</html>
